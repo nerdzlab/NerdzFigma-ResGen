@@ -1,17 +1,239 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<!DOCTYPE html>
+<html lang="en">
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+<head>
+  <meta charset="UTF-8">
+  <title>ARB Key-Value Editor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1E1E1E;
+      color: #D1D5DB;
+    }
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+    .frame-container {
+      margin-bottom: 20px;
+      border: 1px solid #3B3B3B;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: #2D2D2D;
+    }
 
-</script>
+    .frame-title {
+      font-weight: bold;
+      margin: 10px 0;
+      color: #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .frame-name-input {
+      margin-bottom: 10px;
+      padding: 5px;
+      border: 1px solid #3B3B3B;
+      border-radius: 4px;
+      background-color: #1E1E1E;
+      color: #D1D5DB;
+      width: 100%;
+    }
+
+    .key-value-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      width: 100%;
+      transition: background-color 0.3s, opacity 0.3s;
+    }
+
+    .key,
+    .value {
+      padding: 5px;
+      border: 1px solid #3B3B3B;
+      border-radius: 4px;
+      margin-right: 5px;
+      background-color: #1E1E1E;
+      color: #D1D5DB;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .button {
+      margin-left: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      color: #F9FAFB;
+    }
+
+    .delete-btn {
+      background-color: #EF4444;
+    }
+
+    .zoom-btn {
+      background-color: #2563EB;
+      color: #F9FAFB;
+    }
+
+    .edit-btn {
+      background-color: #10B981;
+    }
+
+    .strikethrough {
+      text-decoration: line-through;
+      color: #9CA3AF;
+      background-color: #3B3B3B;
+      opacity: 0.6;
+    }
+
+    .export-btn {
+      background-color: #4B5563;
+      color: #F9FAFB;
+      margin-bottom: 10px;
+    }
+
+    .delete-frame-btn {
+      background-color: #EF4444;
+      color: #F9FAFB;
+    }
+  </style>
+</head>
+
+<body>
+  <h2 style="color: #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+    ARB Key-Value Editor
+    <button class="button export-btn" onclick="exportData()">Export</button>
+  </h2>
+  <div id="frames"></div>
+
+  <script>
+    function exportData() {
+      const frames = document.querySelectorAll('.frame-container');
+      const arbData = {};
+
+      frames.forEach(frame => {
+        if (!frame.classList.contains('strikethrough')) {
+          const keys = frame.querySelectorAll('.key');
+          const values = frame.querySelectorAll('.value');
+
+          keys.forEach((key, index) => {
+            const keyName = key.value;
+            const valueContent = values[index].value;
+            const keyValueItem = key.parentElement;
+            if (!keyValueItem.classList.contains('strikethrough')) {
+              arbData[keyName] = valueContent;
+            }
+          });
+        }
+      });
+
+      const blob = new Blob([JSON.stringify(arbData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'export.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    window.onmessage = (event) => {
+      const { type, data } = event.data.pluginMessage;
+      if (type === 'preview-text') {
+        const framesDiv = document.getElementById('frames');
+        framesDiv.innerHTML = '';
+
+        data.forEach(frame => {
+          const frameContainer = document.createElement('div');
+          frameContainer.className = 'frame-container';
+
+          const frameTitle = document.createElement('div');
+          frameTitle.className = 'frame-title';
+          frameTitle.textContent = `Frame: ${frame.name}`;
+
+          const zoomBtn = document.createElement('button');
+          zoomBtn.className = 'button zoom-btn';
+          zoomBtn.textContent = 'Zoom';
+          zoomBtn.onclick = () => {
+            parent.postMessage({
+              pluginMessage: {
+                type: 'zoom-via-id',
+                nodeId: frame.id,
+              }
+            }, '*');
+          };
+
+          const deleteFrameBtn = document.createElement('button');
+          deleteFrameBtn.className = 'button delete-frame-btn';
+          deleteFrameBtn.textContent = 'Delete Frame';
+          deleteFrameBtn.onclick = () => {
+            frameContainer.classList.toggle('strikethrough');
+          };
+
+          const frameRightContainer = document.createElement('div');
+          frameRightContainer.appendChild(zoomBtn);
+          frameRightContainer.appendChild(deleteFrameBtn);
+          frameTitle.appendChild(frameRightContainer);
+          frameContainer.appendChild(frameTitle);
+
+          const frameNameInput = document.createElement('input');
+          frameNameInput.className = 'frame-name-input';
+          frameNameInput.value = frame.nameCamelCase
+          frameNameInput.onfocus = () => {
+            console.log(frameNameInput.value)
+            frameNameInput.dataset.oldValue = frameNameInput.value;
+          };
+          frameNameInput.oninput = () => {
+            const oldFrameName = frameNameInput.dataset.oldValue || '';
+            const newFrameName = frameNameInput.value;
+            const keys = frameContainer.querySelectorAll('.key');
+
+            frame.textNodes.forEach((textNode, index) => {
+              keys[index].value =
+                keys[index].value.replace(oldFrameName, newFrameName);
+            });
+
+            frameNameInput.dataset.oldValue = newFrameName;
+          };
+
+          frameContainer.appendChild(frameNameInput);
+
+          const keyValueList = document.createElement('div');
+
+          frame.textNodes.forEach(({ key, content }, index) => {
+            const keyValueItem = document.createElement('div');
+            keyValueItem.className = 'key-value-item';
+
+            const keyInput = document.createElement('input');
+            keyInput.className = 'key';
+            keyInput.value = key;
+            keyInput.addEventListener('input', () => keyInput.value);
+
+            const valueInput = document.createElement('input');
+            valueInput.className = 'value';
+            valueInput.value = content;
+            valueInput.addEventListener('input', () => valueInput.value);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'button delete-btn';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = () => {
+              keyValueItem.classList.toggle('strikethrough');
+            };
+
+            keyValueItem.appendChild(keyInput);
+            keyValueItem.appendChild(valueInput);
+            keyValueItem.appendChild(deleteBtn);
+            keyValueList.appendChild(keyValueItem);
+          });
+
+          frameContainer.appendChild(keyValueList);
+          framesDiv.appendChild(frameContainer);
+        });
+      }
+    };
+  </script>
+</body>
+
+</html>

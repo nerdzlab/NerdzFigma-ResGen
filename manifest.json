@@ -9,6 +9,12 @@
   "editorType": [
     "figma"
   ],
+  "menu": [
+    {
+      "name": "Extract Text to ARB",
+      "command": "extract-text"
+    }
+  ],
   "ui": "ui.html",
   "networkAccess": {
     "allowedDomains": [
