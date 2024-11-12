@@ -2,7 +2,7 @@
   "name": "Resource Generator NerdzLab",
   "id": "1437809913808562154",
   "api": "1.0.0",
-  "main": "code.js",
+  "main": "src/code.js",
   "capabilities": [],
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
@@ -13,9 +13,20 @@
     {
       "name": "Extract Text to ARB",
       "command": "extract-text"
+    },
+    {
+      "name": "Extract Colors to XML",
+      "command": "extract-colors"
+    },
+    {
+      "name": "Extract TextStyles to .dart",
+      "command": "extract-text-styles"
     }
   ],
-  "ui": "ui.html",
+  "ui": {
+    "arb": "src/ui/arb.html",
+    "colors": "src/ui/colors.html"
+  },
   "networkAccess": {
     "allowedDomains": [
       "none"

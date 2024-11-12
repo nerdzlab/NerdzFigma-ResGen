@@ -1,3 +1,7 @@
+///
+/// Figma.core related.
+///
+
 /// Handle the plugin commands from figma app.
 figma.on('run', async ({ command }) => {
   if (command === 'extract-text') {
@@ -8,9 +12,21 @@ figma.on('run', async ({ command }) => {
       return;
     }
 
-    figma.showUI(__html__, { width: 600, height: 600 });
+    figma.showUI(__uiFiles__.arb, { width: 600, height: 600 });
 
     figma.ui.postMessage({ type: 'preview-text', data: framesData });
+  } else if (command === 'extract-text-styles') { }
+  else if (command === 'extract-colors') {
+    const colorsData = extractColorsFromSelection();
+    if (colorsData.length === 0) {
+      figma.notify("Please select anything with colors.");
+      figma.closePlugin();
+      return;
+    }
+
+    figma.showUI(__uiFiles__.colors, { width: 600, height: 600 });
+
+    figma.ui.postMessage({ type: 'load-colors', data: colorsData });
   }
 });
 
@@ -24,33 +40,41 @@ figma.ui.onmessage = (msg) => {
   }
 }
 
-/// Helper function to convert text to camel case and limit its length.
-/// Limited not by characters but by words. 
-/// NOT loginScreenSomeLongTextUnder... -> BUT(ends on word) loginScreenSomeLongText
-const toCamelCaseWithLimit = (text: string, maxLength: number): string => {
-  const words = text
-    .replace(/[^a-zA-Z0-9 ]/g, '')
-    .split(' ')
-    .filter(Boolean);
+///
+/// Extract colors feature.
+///
+const extractColorsFromSelection = (): { hex: string, name: string }[] => {
 
-  let camelCaseKey = words
-    .map((word, index) =>
-      index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    )
-    .join('');
+  const colors = figma.getSelectionColors()
+  const seenColors = new Set();
 
-  if (camelCaseKey.length > maxLength) {
-    let trimmedKey = '';
-    for (const word of words) {
-      const potentialKey = trimmedKey + (trimmedKey ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase());
-      if (potentialKey.length > maxLength) break;
-      trimmedKey = potentialKey;
+  const exportColors = colors?.paints.map(paint => {
+    if (paint.type === "SOLID") {
+      const hex = colorRGBToString(paint.color);
+
+      if (seenColors.has(hex)) {
+        return null;
+      }
+
+      seenColors.add(hex);
+      return { hex: hex, name: hex };
     }
-    return trimmedKey;
-  }
 
-  return camelCaseKey;
+    return null
+  }).filter((item): item is
+    { hex: string, name: string } => item !== null);
+
+  return exportColors || [];
 };
+
+const colorRGBToString = (color: RGB) => "#" +
+  Math.round(color.r * 255).toString(16).padStart(2, "0") +
+  Math.round(color.g * 255).toString(16).padStart(2, "0") +
+  Math.round(color.b * 255).toString(16).padStart(2, "0");
+
+///
+/// Extract ARB feature.
+///
 
 /// Function to extract text from frames with camel case keys
 /// Repeats - ignoring.
@@ -89,6 +113,39 @@ const extractTextFromFrames = (): { id: string, name: string, nameCamelCase: str
 
   return framesData;
 };
+
+/// Helper function to convert text to camel case and limit its length.
+/// Limited not by characters but by words. 
+/// NOT loginScreenSomeLongTextUnder... -> BUT(ends on word) loginScreenSomeLongText
+const toCamelCaseWithLimit = (text: string, maxLength: number): string => {
+  const words = text
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .split(' ')
+    .filter(Boolean);
+
+  let camelCaseKey = words
+    .map((word, index) =>
+      index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    )
+    .join('');
+
+  if (camelCaseKey.length > maxLength) {
+    let trimmedKey = '';
+    for (const word of words) {
+      const potentialKey = trimmedKey + (trimmedKey ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase());
+      if (potentialKey.length > maxLength) break;
+      trimmedKey = potentialKey;
+    }
+    return trimmedKey;
+  }
+
+  return camelCaseKey;
+};
+
+
+///
+/// Interactions with figma.
+///
 
 /// Zooming to element via id.
 const zoomToElementById = async (nodeId: string) => {
