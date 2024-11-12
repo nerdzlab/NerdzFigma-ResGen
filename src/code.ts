@@ -15,7 +15,19 @@ figma.on('run', async ({ command }) => {
     figma.showUI(__uiFiles__.arb, { width: 600, height: 600 });
 
     figma.ui.postMessage({ type: 'preview-text', data: framesData });
-  } else if (command === 'extract-text-styles') { }
+  } else if (command === 'extract-text-styles') {
+    const stylesData = extractTextStylesFromSelection();
+
+    if (stylesData.length === 0) {
+      figma.notify("Please select anything with text.");
+      figma.closePlugin();
+      return;
+    }
+
+    figma.showUI(__uiFiles__.textStyles, { width: 800, height: 600 });
+
+    figma.ui.postMessage({ type: 'preview-text-styles', data: stylesData });
+  }
   else if (command === 'extract-colors') {
     const colorsData = extractColorsFromSelection();
     if (colorsData.length === 0) {
@@ -39,6 +51,90 @@ figma.ui.onmessage = (msg) => {
     zoomToElementById(nodeId);
   }
 }
+
+///
+/// Extract TextStyles feature.
+///
+
+// Define type scale mapping from Material Design 3 in descending order with camelCase names
+const typeScales: { fontSize: number, name: string }[] = [
+  { fontSize: 96, name: 'displayLarge' },
+  { fontSize: 84, name: 'displayMedium' },
+  { fontSize: 72, name: 'displaySmall' },
+  { fontSize: 60, name: 'headlineLarge' },
+  { fontSize: 48, name: 'headlineMedium' },
+  { fontSize: 40, name: 'headlineSmall' },
+  { fontSize: 32, name: 'titleLarge' },
+  { fontSize: 28, name: 'titleMedium' },
+  { fontSize: 24, name: 'titleSmall' },
+  { fontSize: 20, name: 'labelLarge' },
+  { fontSize: 16, name: 'labelMedium' },
+  { fontSize: 14, name: 'labelSmall' },
+  { fontSize: 12, name: 'bodyLarge' },
+  { fontSize: 10, name: 'bodyMedium' },
+  { fontSize: 8, name: 'bodySmall' }
+];
+
+// Function to get the type scale name based on font size
+function getTypeScaleName(fontSize: number): string {
+  const scale = typeScales.find((scale) => fontSize >= scale.fontSize);
+  return scale ? scale.name : 'unknown';
+}
+
+const extractTextStylesFromSelection = () => {
+  const textStyles: any[] = [];
+
+  for (const node of figma.currentPage.selection) {
+    if (node.type === 'FRAME') {
+      const textNodes = node.findAll(n => n.type === 'TEXT') as TextNode[];
+
+      textNodes.forEach(textNode => {
+        const fontFamily = (textNode.fontName as FontName).family;
+        const fontSize = textNode.fontSize as number;
+        const fontWeight = textNode.fontWeight as number;
+        const baseFontName = getTypeScaleName(fontSize);
+        const fontName = `${baseFontName}${(textNode.fontName as FontName).style}`;
+
+        const newTextStyle = {
+          fontName: fontName,
+          fontFamily: fontFamily.toLowerCase(),
+          fontSize: fontSize.toFixed(2),
+          fontWeight: fontWeight,
+        };
+
+        // Check if a similar style already exists
+        const isDuplicate = textStyles.some(style =>
+          style.fontName === newTextStyle.fontName &&
+          style.fontFamily === newTextStyle.fontFamily &&
+          style.fontSize === newTextStyle.fontSize &&
+          style.fontWeight === newTextStyle.fontWeight
+        );
+
+        // Only add if not duplicate
+        if (!isDuplicate) {
+          textStyles.push(newTextStyle);
+        }
+      });
+    }
+  }
+
+  // Append font size to names with duplicates
+  const nameCounts: { [key: string]: number } = {};
+  textStyles.forEach(style => {
+    const baseName = style.fontName;
+    nameCounts[baseName] = (nameCounts[baseName] || 0) + 1;
+  });
+
+  // If any names are duplicated, append the font size to make them unique
+  textStyles.forEach(style => {
+    if (nameCounts[style.fontName] > 1) {
+      style.fontName = `${style.fontName}${Math.round(style.fontSize)}`;
+    }
+  });
+
+  return textStyles;
+};
+
 
 ///
 /// Extract colors feature.

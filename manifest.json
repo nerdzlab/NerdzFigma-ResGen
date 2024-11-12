@@ -25,11 +25,12 @@
   ],
   "ui": {
     "arb": "src/ui/arb.html",
-    "colors": "src/ui/colors.html"
+    "colors": "src/ui/colors.html",
+    "textStyles": "src/ui/text-styles.html"
   },
   "networkAccess": {
     "allowedDomains": [
-      "none"
+      "https://cdnjs.cloudflare.com"
     ]
   }
 }
