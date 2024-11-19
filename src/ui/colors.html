@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Color Editor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1E1E1E;
+      color: #D1D5DB;
+    }
+
+    .color-container {
+      margin-bottom: 20px;
+      border: 1px solid #3B3B3B;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: #2D2D2D;
+    }
+
+    .color-title {
+      font-weight: bold;
+      margin: 10px 0;
+      color: #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .color-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      width: 100%;
+    }
+
+    .color-square {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #FFF;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+
+    .color-name-input {
+      padding: 5px;
+      border: 1px solid #3B3B3B;
+      border-radius: 4px;
+      background-color: #1E1E1E;
+      color: #D1D5DB;
+      flex: 1;
+    }
+
+    .button {
+      margin-left: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      color: #F9FAFB;
+    }
+
+    .strikethrough {
+      text-decoration: line-through;
+      color: #9CA3AF;
+      background-color: #3B3B3B;
+      border-radius: 8px;
+      opacity: 0.6;
+    }
+
+    .delete-btn {
+      background-color: #EF4444;
+    }
+
+    .export-btn {
+      background-color: #4B5563;
+      color: #F9FAFB;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2 style="color: #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+    Color Editor
+    <button class="button export-btn" onclick="exportData()">Export</button>
+  </h2>
+  <div id="colorList"></div>
+
+  <script>
+    function exportData() {
+      const colors = [];
+      document.querySelectorAll('.color-item').forEach(item => {
+        if (!item.classList.contains('strikethrough')) {
+          const colorHex = item.dataset.colorHex;
+          const colorName = item.querySelector('.color-name-input').value;;
+          colors.push({ hex: colorHex, name: colorName });
+        }
+      });
+
+
+      const xmlContent = '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<resources>\n' +
+        colors.map(value => `\t<color name="${value.name}">${value.hex}</color>\n`).join('') +
+        '</resources>';
+
+      const blob = new Blob([xmlContent], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'colors.xml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    window.onmessage = (event) => {
+      const { type, data } = event.data.pluginMessage;
+      if (type === 'load-colors') {
+        const colorListDiv = document.getElementById('colorList');
+        colorListDiv.innerHTML = '';
+
+        data.forEach(color => {
+          const colorItem = document.createElement('div');
+          colorItem.className = 'color-item';
+          colorItem.dataset.colorHex = color.hex;
+
+          const colorSquare = document.createElement('div');
+          colorSquare.className = 'color-square';
+          colorSquare.style.backgroundColor = color.hex;
+
+          const colorNameInput = document.createElement('input');
+          colorNameInput.className = 'color-name-input';
+          colorNameInput.value = color.name || '';
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'button delete-btn';
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.onclick = () => {
+            colorItem.classList.toggle('strikethrough');
+          };
+
+          colorItem.appendChild(colorSquare);
+          colorItem.appendChild(colorNameInput);
+          colorItem.appendChild(deleteBtn);
+          colorListDiv.appendChild(colorItem);
+        });
+      }
+    };
+  </script>
+</body>
+
+</html>
